@@ -46,6 +46,7 @@ export default function FinanceHub() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authLoading, setAuthLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Estados de posts
   const [posts, setPosts] = useState<Post[]>([]);
@@ -76,6 +77,7 @@ export default function FinanceHub() {
         } else {
           setUser(null);
         }
+        setIsCheckingAuth(false);
       }
     );
 
@@ -93,10 +95,12 @@ export default function FinanceHub() {
   }, [user, selectedCategory]);
 
   const checkUser = async () => {
+    setIsCheckingAuth(true);
     const currentUser = await authService.getCurrentUser();
     if (currentUser) {
       await loadUserData(currentUser.id);
     }
+    setIsCheckingAuth(false);
   };
 
   const loadUserData = async (userId: string) => {
@@ -145,8 +149,15 @@ export default function FinanceHub() {
       } else {
         const { data, error } = await authService.signIn(email, password);
         if (error) throw error;
-        toast.success("Login realizado com sucesso!");
-        setIsAuthOpen(false);
+        
+        // Carregar dados do usuário imediatamente após login
+        if (data.user) {
+          await loadUserData(data.user.id);
+          toast.success("Login realizado com sucesso!");
+          setIsAuthOpen(false);
+        } else {
+          throw new Error("Erro ao carregar dados do usuário");
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao autenticar");
@@ -257,6 +268,20 @@ export default function FinanceHub() {
     }
     return true;
   });
+
+  // Mostrar loading enquanto verifica autenticação
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 animate-pulse">
+            <TrendingUp className="h-8 w-8 text-white" />
+          </div>
+          <p className="text-slate-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Se não estiver logado, mostrar tela de boas-vindas
   if (!user) {
